@@ -1,0 +1,419 @@
+<!--
+  File: video_library.html
+  Trang thư viện video với sẵn 11 ô (slot) để bạn thêm video.
+-->
+
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>B&R</title>
+    <style>
+      :root {
+        --bg: #0f1724;
+        --card: #0b1220;
+        --muted: #9aa4b2;
+        --accent: #60a5fa;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI,
+          Roboto, "Helvetica Neue", Arial;
+        background: linear-gradient(180deg, #071126 0%, #07193a 100%);
+        color: #e6eef8;
+      }
+      header {
+        padding: 28px 20px;
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        letter-spacing: 0.2px;
+      }
+      p.lead {
+        color: var(--muted);
+        margin: 8px 0 0;
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 22px auto;
+        padding: 0 16px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 16px;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.03);
+        padding: 12px;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .thumb {
+        position: relative;
+        padding-top: 56.25%;
+        border-radius: 8px;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0b233b, #04203a);
+      }
+      .thumb img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .title {
+        font-weight: 600;
+        font-size: 15px;
+      }
+      .subtitle {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .btn {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 8px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .searchbar {
+        display: flex;
+        gap: 8px;
+        margin: 12px 0;
+      }
+      input.search {
+        flex: 1;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(255, 255, 255, 0.02);
+        color: inherit;
+      }
+      .player-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(4, 8, 18, 0.7);
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        z-index: 60;
+        visibility: hidden;
+        opacity: 0;
+        transition: all 0.18s;
+      }
+      .player-modal.open {
+        visibility: visible;
+        opacity: 1;
+      }
+      .player {
+        width: min(1100px, 100%);
+        background: var(--card);
+        border-radius: 12px;
+        padding: 12px;
+      }
+      .player video,
+      .player iframe {
+        width: 100%;
+        height: 560px;
+        border-radius: 8px;
+        background: #000;
+      }
+      .player .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 8px;
+      }
+      .close {
+        background: transparent;
+        border: 0;
+        color: var(--muted);
+        cursor: pointer;
+        padding: 8px;
+      }
+      footer {
+        padding: 28px 16px;
+        text-align: center;
+        color: var(--muted);
+      }
+      @media (max-width: 700px) {
+        .player video,
+        .player iframe {
+          height: 280px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>BREAK AND RUN</h1>
+      <p class="lead">GO GO GO</p>
+    </header>
+
+    <main class="wrap">
+      <div class="searchbar">
+        <input
+          id="q"
+          class="search"
+          placeholder="Tìm video theo tiêu đề..."
+          oninput="renderGrid()"
+        />
+        <button class="btn" onclick="openAll()">Phát liên tiếp</button>
+      </div>
+
+      <div id="grid" class="grid" aria-live="polite"></div>
+
+      <div
+        id="noresult"
+        style="display: none; color: var(--muted); margin-top: 12px"
+      >
+        Không tìm thấy video.
+      </div>
+    </main>
+
+    <div
+      id="modal"
+      class="player-modal"
+      onclick="if(event.target.id==='modal') closeModal()"
+    >
+      <div class="player" role="dialog" aria-modal="true">
+        <div id="playerContainer"></div>
+        <div class="row">
+          <div id="playerTitle" style="font-weight: 600"></div>
+          <div>
+            <button class="close" onclick="closeModal()">Đóng ✕</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <small
+        >Hiện có sẵn 11 slot — chỉ cần thay link và tiêu đề video cho phù
+        hợp.</small
+      >
+    </footer>
+
+    <script>
+      // ====== Thêm video ở đây ======
+      const videos = [
+        {
+          id: "v1",
+          type: "file", // hoặc "mp4"
+          title: "Video 1",
+          src: "https://thanh082.github.io/BREAK-AND-RUNN/Video 1.mp4",
+          thumb: "",
+        },
+        {
+          id: "v2",
+          type: "file",
+          title: "Video 2",
+          src: "https://thanh082.github.io/abcgdjdgmm/video2.mp4",
+          thumb: "",
+        },
+        {
+          id: "v3",
+          type: "file",
+          title: "Video 3",
+          src: "https://thanh082.github.io/ahfhbas/video3.mp4",
+          thumb: "",
+        },
+        {
+          id: "v4",
+          type: "file",
+          title: "Video 4",
+          src: "https://thanh082.github.io/bduiafva/video4.mp4",
+          thumb: "",
+        },
+        {
+          id: "v5",
+          type: "file",
+          title: "Video 5",
+          src: "https://thanh082.github.io/jsdjajv/video5.mp4",
+          thumb: "",
+        },
+        {
+          id: "v6",
+          type: "file",
+          title: "Video 6",
+          src: "https://thanh082.github.io/maideptrai/video6.mp4",
+          thumb: "",
+        },
+        {
+          id: "v7",
+          type: "file",
+          title: "Video 7",
+          src: "https://thanh082.github.io/maimai/video7.mp4",
+          thumb: "",
+        },
+        {
+          id: "v8",
+          type: "file",
+          title: "Video 8",
+          src: "https://thanh082.github.io/maimauu/video8.mp4",
+          thumb: "",
+        },
+        {
+          id: "v9",
+          type: "file",
+          title: "Video 9",
+          src: "https://thanh082.github.io/maidocc/video9.mp4",
+          thumb: "",
+        },
+        {
+          id: "v10",
+          type: "file",
+          title: "Video 10",
+          src: "https://thanh082.github.io/maidoccc/video10.mp4",
+          thumb: "",
+        },
+        {
+          id: "v11",
+          type: "file",
+          title: "Video 11",
+          src: "https://thanh082.github.io/gfasfas/video11.mp4",
+          thumb: "",
+        },
+      ];
+
+      // ====== Không cần chỉnh dưới đây nếu bạn không muốn ======
+      const grid = document.getElementById("grid");
+      const q = document.getElementById("q");
+
+      function getYouTubeId(url) {
+        if (!url) return null;
+        const m =
+          url.match(/[?&]v=([^&]+)/) ||
+          url.match(/youtu\.be\/(.+)/) ||
+          url.match(/youtube\.com\/embed\/(.+)/);
+        return m ? m[1] : null;
+      }
+
+      function renderGrid() {
+        const term = q.value.trim().toLowerCase();
+        grid.innerHTML = "";
+        const filtered = videos.filter((v) =>
+          v.title.toLowerCase().includes(term)
+        );
+        document.getElementById("noresult").style.display = filtered.length
+          ? "none"
+          : "block";
+
+        filtered.forEach((v) => {
+          const card = document.createElement("div");
+          card.className = "card";
+          const thumb = document.createElement("div");
+          thumb.className = "thumb";
+
+          if (v.type === "youtube") {
+            const id = getYouTubeId(v.src) || v.src;
+            const img = document.createElement("img");
+            img.src =
+              v.thumb ||
+              (id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : "");
+            img.alt = v.title;
+            thumb.appendChild(img);
+          } else {
+            const img = document.createElement("img");
+            img.src =
+              v.thumb ||
+              'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="100%" height="100%" fill="%23071a2b"/><text x="50%" y="50%" fill="%23fff" font-size="24" text-anchor="middle">Video MP4</text></svg>';
+            img.alt = v.title;
+            thumb.appendChild(img);
+          }
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          const title = document.createElement("div");
+          title.className = "title";
+          title.textContent = v.title;
+          const btn = document.createElement("button");
+          btn.className = "btn";
+          btn.textContent = "Xem";
+          btn.onclick = () => openModal(v);
+
+          meta.appendChild(title);
+          meta.appendChild(btn);
+          card.appendChild(thumb);
+          card.appendChild(meta);
+          grid.appendChild(card);
+        });
+      }
+
+      function openModal(v) {
+        const modal = document.getElementById("modal");
+        const container = document.getElementById("playerContainer");
+        const title = document.getElementById("playerTitle");
+        container.innerHTML = "";
+        title.textContent = v.title;
+
+        if (v.type === "youtube") {
+          const id = getYouTubeId(v.src) || v.src;
+          if (id) {
+            const iframe = document.createElement("iframe");
+            iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&rel=0`;
+            iframe.allow = "autoplay; encrypted-media; picture-in-picture";
+            iframe.setAttribute("allowfullscreen", "");
+            container.appendChild(iframe);
+          }
+        } else {
+          const vid = document.createElement("video");
+          vid.src = v.src;
+          vid.controls = true;
+          vid.autoplay = true;
+          vid.playsInline = true;
+          container.appendChild(vid);
+        }
+
+        modal.classList.add("open");
+      }
+
+      function closeModal() {
+        const modal = document.getElementById("modal");
+        const container = document.getElementById("playerContainer");
+        modal.classList.remove("open");
+        container.innerHTML = "";
+      }
+
+      function openAll() {
+        if (!videos.length) return;
+        let i = 0;
+        function next() {
+          if (i >= videos.length) {
+            closeModal();
+            return;
+          }
+          openModal(videos[i]);
+          i++;
+          const container = document.getElementById("playerContainer");
+          const el = container.querySelector("video");
+          if (el) {
+            el.onended = next;
+          } else {
+            setTimeout(next, 120000);
+          }
+        }
+        next();
+      }
+
+      renderGrid();
+    </script>
+  </body>
+</html>
